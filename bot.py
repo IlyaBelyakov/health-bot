@@ -7,8 +7,10 @@ import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from datetime import datetime
 
+import aiohttp
 import gspread
 from aiogram import Bot, Dispatcher, F, types
+from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.filters import Command
 from dotenv import load_dotenv
 from google.oauth2 import service_account
@@ -49,7 +51,11 @@ def get_sheet():
 openai_client = AsyncOpenAI(api_key=OPENAI_API_KEY)
 
 # ---------- Telegram ----------
-bot = Bot(token=TELEGRAM_BOT_TOKEN)
+# Долгие таймауты: контейнер хостинга может медленно ходить к api.telegram.org
+telegram_session = AiohttpSession(
+    timeout=aiohttp.ClientTimeout(total=180, connect=60)
+)
+bot = Bot(token=TELEGRAM_BOT_TOKEN, session=telegram_session)
 dp = Dispatcher()
 
 
@@ -255,13 +261,22 @@ async def on_text(message: types.Message):
 
 
 async def main():
-    print("Бот запущен. Нажми Ctrl+C для остановки.")
-    await dp.start_polling(bot)
+    print("Бот запущен. Ctrl+C для остановки.", flush=True)
+    while True:
+        try:
+            await dp.start_polling(
+                bot,
+                allowed_updates=dp.resolve_used_update_types(),
+            )
+        except Exception as e:
+            # Сбой сети/таймаут не должен убивать бота — перезапускаем опрос
+            print(f"[polling] ошибка: {e}; повтор через 5с", flush=True)
+            await asyncio.sleep(5)
 
 
 def start_health_server():
     """Минимальный HTTP-сервер для проверки здоровья на Render."""
-    port = int(os.getenv("PORT", "8000"))
+    port = int(os.getenv("PORT", "3000"))
 
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self):
