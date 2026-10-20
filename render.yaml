@@ -2,6 +2,7 @@ services:
   - type: web
     name: health-bot
     runtime: python
+    pythonVersion: 3.12.2
     plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: python bot.py
