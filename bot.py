@@ -7,7 +7,6 @@ import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from datetime import datetime
 
-import aiohttp
 import gspread
 from aiogram import Bot, Dispatcher, F, types
 from aiogram.client.session.aiohttp import AiohttpSession
@@ -51,10 +50,8 @@ def get_sheet():
 openai_client = AsyncOpenAI(api_key=OPENAI_API_KEY)
 
 # ---------- Telegram ----------
-# Долгие таймауты: контейнер хостинга может медленно ходить к api.telegram.org
-telegram_session = AiohttpSession(
-    timeout=aiohttp.ClientTimeout(total=180, connect=60)
-)
+# Долгий таймаут: контейнер хостинга может медленно ходить к api.telegram.org
+telegram_session = AiohttpSession(timeout=180)
 bot = Bot(token=TELEGRAM_BOT_TOKEN, session=telegram_session)
 dp = Dispatcher()
 
